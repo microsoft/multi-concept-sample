@@ -3,12 +3,12 @@
 A multi-concept approach illustrated on the [moab problem](https://docs.microsoft.com/en-us/bonsai/quickstart/moab/). We illustrate how to train a brain to select ('a selector') between two trained brains ('concepts') to accomplish a task. We illustrate the approach using a python simulator, exported trained brains as docker containers, and orchestration of concepts in python. 
 
 ![](img/legend.png)
-<img src="img/multi-concept.png" alt="drawing" width="300"/>
+
+<img src="img/multi-concept.PNG" alt="drawing" width="300"/>
+
+Since multi-concept is not yet integrated with the Bonsai platform yet, the workaround is using [concept_orchestration.py](https://github.com/microsoft/multi-concept-sample/blob/main/concept_orchestration.py). Consider this as a class that provides API to utilize pre-trained exported concepts.
 
 > 🚩 Disclaimer: This is not an official Microsoft product. This application is considered an experimental addition to Microsoft Project Bonsai's software toolchain. It's primary goal is to reduce barriers of entry to use Project Bonsai's core Machine Teaching. Pull requests for fixes and small enhancements are welcome, but we do expect this to be replaced by out-of-the-box features of Project Bonsai in the near future.
-
-Since multi-concept is not yet integrated with the Bonsai platform yet, the workaround is using `concept_orchestration.py`. Consider this as a class that provides API to utilize pre-trained exported concepts.
-
 
 > ⚠️ Training and sim scaling with multi-concept is done on a local machine (Unmanaged) in this sample because docker containers in a container is an additional complication. 
 
