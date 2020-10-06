@@ -71,11 +71,6 @@ if __name__ == "__main__":
     
     #list_available_brain_images()
     
-    #brain_image_name_1 = 'brchunws.azurecr.io/d2a2100f-c54c-4cd4-893c-6729663ddadb/moab_c1_stabilize_center_static:3-linux-amd64'
-    #C1_url = launch_predictor_server(brain_image_name_1, port = 1234)
-    #brain_image_name_2 = 'brchunws.azurecr.io/d2a2100f-c54c-4cd4-893c-6729663ddadb/moab_multiconcept_test:2-linux-amd64'
-    #C2_url = launch_predictor_server(brain_image_name_2, port = 5678)
-    
     C1_url = 'http://localhost:1111'
     C2_url = 'http://localhost:2222'
 

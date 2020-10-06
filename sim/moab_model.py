@@ -8,7 +8,7 @@ __copyright__ = "Copyright 2020, Microsoft Corp."
 
 import math
 import random
-from typing import Dict, Tuple
+from typing import Dict, Tuple, cast
 
 import numpy as np
 from pyrr import Quaternion, Vector3, matrix44, quaternion, ray, vector
@@ -273,6 +273,14 @@ class MoabModel:
         dx = point_x - start_x
         dy = point_y - start_y
 
+        # if the ball is already at the target location or
+        # is not moving, return a heading of 0 so we don't
+        # attempt to normalize a zero-length vector
+        if dx == 0 and dy == 0:
+            return 0
+        if vel_x == 0 and vel_y == 0:
+            return 0
+
         # vectors and lengths
         u = vector.normalize([dx, dy, 0.0])
         v = vector.normalize([vel_x, vel_y, 0.0])
@@ -447,9 +455,9 @@ class MoabModel:
         )
 
         # update the derived states
-        self.estimated_speed = vector.length(
+        self.estimated_speed = cast(float, vector.length(
             [self.ball_vel.x, self.ball_vel.y, self.ball_vel.z]
-        )
+        ))
 
         self.estimated_direction = MoabModel.heading_to_point(
             self.estimated_x,

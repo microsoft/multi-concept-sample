@@ -1,97 +1,55 @@
+#!/usr/bin/env python3
+
 """
-Simulator for the Moab plate+ball balancing device using concept selectors
+MSFT Bonsai SDK3 Template for Simulator Integration using Python
+Copyright 2020 Microsoft
+
+Usage:
+  For registering simulator with the Bonsai service for training:
+    python main.py \
+           --workspace <workspace_id> \
+           --accesskey="<access_key> \
+  Then connect your registered simulator to a Brain via UI
+  Alternatively, one can set the SIM_ACCESS_KEY and SIM_WORKSPACE as
+  environment variables.
 """
 
-# pyright: strict
-
-import os
-import sys
 import json
 import time
-from dotenv import load_dotenv, set_key
-from pyrr import matrix33, vector
-from typing import Dict, Any, List
-from microsoft_bonsai_api.simulator.client import BonsaiClient, BonsaiClientConfig
+from typing import Dict, Any, Optional
+from microsoft_bonsai_api.simulator.client import BonsaiClientConfig, BonsaiClient
 from microsoft_bonsai_api.simulator.generated.models import (
     SimulatorState,
     SimulatorInterface,
 )
-from sim import moab_model
+
+import argparse
+from sim.moab_model import MoabModel
+from jinja2 import Template
 from concept_orchestration import ExportedBrainPredictor, launch_predictor_server
-from policies import random_policy
+from pyrr import matrix33, vector
 
-
-dir_path = os.path.dirname(os.path.realpath(__file__))
-
-class TemplateSimulatorSession:
-    def __init__(
-        self,
-        modeldir: str = "sim",
-        env_name: str = "moab-py-v5"
-    ):
-        """Simulator Interface with the Bonsai Platform
-        Parameters
-        ----------
-        modeldir: str, optional
-            directory where you sim folder lives
-        env_name : str, optional
-            Name of simulator interface, by default "Cartpole"
-        """
-        self.modeldir = modeldir
-        self.env_name = env_name
-        print("Using simulator file from: ", os.path.join(dir_path, self.modeldir))
-        self.simulator = moab_model.MoabModel()
+class TemplateSimulatorSession():
+    def __init__(self, render):
+        ## Initialize python api for simulator
+        self.simulator = MoabModel()
+        
         C1_url = 'http://localhost:1111'
         C2_url = 'http://localhost:2222'
         self.C1 = ExportedBrainPredictor(predictor_url=C1_url, control_period=1)
         self.C2 = ExportedBrainPredictor(predictor_url=C2_url, control_period=1)
+
+    def get_state(self) -> Dict[str, Any]:
+        """Called to retreive the current state of the simulator. """
+        state = self.simulator.state()
+        for key, value in state.items():
+            state[key] = float(value)
+
+        return state
+
+    def episode_start(self, config: Dict[str, Any]):
+        """ Called at the start of each episode """
         
-    def get_state(self) -> Dict[str, float]:
-        """Called to retreive the current state of the simulator.
-        
-        Returns
-        -------
-        Dict[str, float]
-            Returns float of current values from the simulator
-        """
-        return self.simulator.state()
-
-    def clamp(self, val: float, min_val: float, max_val: float):
-        """Clamp the values to defined ranges.
-        """
-        return min(max_val, max(min_val, val))
-
-    def _set_velocity_for_speed_and_direction(self, speed: float, direction: float):
-        """Set the direction and speed.       
-        """
-        # Get the heading
-        dx = self.simulator.target_x - self.simulator.ball.x
-        dy = self.simulator.target_y - self.simulator.ball.y
-
-        # Direction is meaningless if we're already at the target
-        if (dx != 0) or (dy != 0):
-
-            # Set the magnitude
-            vel = vector.set_length([dx, dy, 0.0], speed)
-
-            # Rotate by direction around Z-axis at ball position
-            rot = matrix33.create_from_axis_rotation([0.0, 0.0, 1.0], direction)
-            vel = matrix33.apply_to_vector(rot, vel)
-
-            # Unpack into ball velocity
-            self.simulator.ball_vel.x = vel[0]
-            self.simulator.ball_vel.y = vel[1]
-            self.simulator.ball_vel.z = vel[2]
-
-    def episode_start(self, config: Dict = None) -> None:
-        """Initialize simulator environment using scenario paramters from Inkling.
-        
-        Parameters
-        -------
-        config : Dict, optional
-            by default None
-        """
-
         # Return to pre-determined good state to avoid accidental episode-episode dependencies
         self.simulator.reset()
 
@@ -158,15 +116,10 @@ class TemplateSimulatorSession:
         if initial_speed is not None and initial_direction is not None:
             self._set_velocity_for_speed_and_direction(initial_speed, initial_direction)
 
-
-    def episode_step(self, action: Dict):
-        """Step through the environment for a single iteration.
+    def episode_step(self, action: Dict[str, Any]):
+        """ Called for each step of the episode """
+        ## Add simulator step api here using action from Bonsai platform
         
-        Parameters
-        ----------
-        action : Dict
-            An action to take to modulate environment.
-        """
         # Use new syntax or fall back to old parameter names
         if action.get('concept_index') == 1: # selector
             action = self.C1.get_action(self.get_state())
@@ -184,142 +137,131 @@ class TemplateSimulatorSession:
         self.simulator.step()
 
     def halted(self) -> bool:
-        """Halt current episode if the simulator has reached an unexpected state (if the ball is off the plate).
-        
-        Returns
-        -------
-        bool
-            Whether to terminate current episode
         """
-        return self.simulator.halted()   
+        Should return True if the simulator cannot continue for some reason
+        """
+        return self.simulator.halted() 
 
-    def random_policy(self, state: Dict = None) -> Dict:
+    def clamp(self, val: float, min_val: float, max_val: float):
+        """Clamp the values to defined ranges.
+        """
+        return min(max_val, max(min_val, val))
+    
+    def _set_velocity_for_speed_and_direction(self, speed: float, direction: float):
+        """Set the direction and speed.       
+        """
+        # Get the heading
+        dx = self.simulator.target_x - self.simulator.ball.x
+        dy = self.simulator.target_y - self.simulator.ball.y
 
-        return random_policy(state)         
+        # Direction is meaningless if we're already at the target
+        if (dx != 0) or (dy != 0):
 
-def env_setup():
-    """Helper function to setup connection with Project Bonsai
+            # Set the magnitude
+            vel = vector.set_length([dx, dy, 0.0], speed)
 
-    Returns
-    -------
-    Tuple
-        workspace, and access_key
-    """
+            # Rotate by direction around Z-axis at ball position
+            rot = matrix33.create_from_axis_rotation([0.0, 0.0, 1.0], direction)
+            vel = matrix33.apply_to_vector(rot, vel)
 
-    load_dotenv(verbose=True)
-    workspace = os.getenv("SIM_WORKSPACE")
-    access_key = os.getenv("SIM_ACCESS_KEY")
-
-    env_file_exists = os.path.exists(".env")
-    if not env_file_exists:
-        open(".env", "a").close()
-
-    if not all([env_file_exists, workspace]):
-        workspace = input("Please enter your workspace id: ")
-        set_key(".env", "SIM_WORKSPACE", workspace)
-    if not all([env_file_exists, access_key]):
-        access_key = input("Please enter your access key: ")
-        set_key(".env", "SIM_ACCESS_KEY", access_key)
-
-    load_dotenv(verbose=True, override=True)
-    workspace = os.getenv("SIM_WORKSPACE")
-    access_key = os.getenv("SIM_ACCESS_KEY")
-
-    return workspace, access_key
+            # Unpack into ball velocity
+            self.simulator.ball_vel.x = vel[0]
+            self.simulator.ball_vel.y = vel[1]
+            self.simulator.ball_vel.z = vel[2]
 
 
-def test_random_policy(
-    num_episodes: int = 10,
-    num_iterations: int = 5,
-):
-    """Test a policy using random actions over a fixed number of episodes
-    Parameters
-    ----------
-    num_episodes : int, optional
-        number of iterations to run, by default 10
-    """
-    sim = TemplateSimulatorSession()
-    for episode in range(num_episodes):
-        iteration = 0
-        terminal = False
-        sim_state = sim.episode_start()
-        while not terminal:
-            action = sim.random_policy(sim_state)
-            sim.episode_step(action)
-            sim_state = sim.get_state()
-            print(f"Running iteration #{iteration} for episode #{episode}")
-            print(f"Observations: {sim_state}")
-            iteration += 1
-            terminal = iteration >= num_iterations
-
-    return sim
-
-
-
-def main():
-    """Main entrypoint for running simulator connections
-    """
-    # workspace environment variables
-    env_setup()
-    load_dotenv(verbose=True, override=True)
-
+def main(render=False):
     # Grab standardized way to interact with sim API
-    sim = TemplateSimulatorSession()
+    sim = TemplateSimulatorSession(render= render)
 
     # Configure client to interact with Bonsai service
     config_client = BonsaiClientConfig()
     client = BonsaiClient(config_client)
 
-    # # Load json file as simulator integration config type file
-    # with open("moab_interface.json") as file:
-    # interface = json.load(file)
+    # Load json file as simulator integration config type file
+    with open('moab_interface.json', "r") as file:
+        template_str = file.read()
 
-    # Create simulator session and init sequence id
-    registration_info = SimulatorInterface(
-        name=sim.env_name,
-        timeout=60,
-        simulator_context=config_client.simulator_context,
+    # render the template with our constants
+    template = Template(template_str)
+    interface_str = template.render(
+        initial_pitch=sim.simulator.pitch,
+        initial_roll=sim.simulator.roll,
+        initial_height_z=sim.simulator.height_z,
+        time_delta=sim.simulator.time_delta,
+        gravity=sim.simulator.time_delta,
+        plate_radius=sim.simulator.plate_radius,
+        plate_theta_vel_limit=sim.simulator.plate_theta_vel_limit,
+        plate_theta_acc=sim.simulator.plate_theta_acc,
+        plate_theta_limit=sim.simulator.plate_theta_limit,
+        plate_z_limit=sim.simulator.plate_z_limit,
+        ball_mass=sim.simulator.ball_mass,
+        ball_radius=sim.simulator.ball_radius,
+        ball_shell=sim.simulator.ball_shell,
+        obstacle_radius=sim.simulator.obstacle_radius,
+        obstacle_x=sim.simulator.obstacle_x,
+        obstacle_y=sim.simulator.obstacle_y,
+        target_x=sim.simulator.target_x,
+        target_y=sim.simulator.target_y,
+        initial_x=sim.simulator.ball.x,
+        initial_y=sim.simulator.ball.y,
+        initial_z=sim.simulator.ball.z,
+        initial_vel_x=sim.simulator.ball_vel.x,
+        initial_vel_y=sim.simulator.ball_vel.y,
+        initial_vel_z=sim.simulator.ball_vel.z,
+        initial_speed=0,
+        initial_direction=0,
+        ball_noise=sim.simulator.ball_noise,
+        plate_noise=sim.simulator.plate_noise,
     )
+    interface = json.loads(interface_str)
+    
+    # Create simulator session and init sequence id
+    
+    registration_info =  SimulatorInterface(
+        name=interface["name"],
+        timeout=interface["timeout"],
+        simulator_context=config_client.simulator_context,
+        description=interface["description"],
+    )
+
     registered_session = client.session.create(
-        workspace_name=config_client.workspace, body=registration_info
+                            workspace_name=config_client.workspace, 
+                            body=registration_info
     )
     print("Registered simulator.")
     sequence_id = 1
-    episode = 0
-    iteration = 0
 
     try:
         while True:
             # Advance by the new state depending on the event type
             sim_state = SimulatorState(
-                sequence_id=sequence_id, state=sim.get_state(), halted=sim.halted(),
+                            sequence_id=sequence_id, state=sim.get_state(), 
+                            halted=sim.halted()
             )
             event = client.session.advance(
-                workspace_name=config_client.workspace,
-                session_id=registered_session.session_id,
-                body=sim_state,
+                        workspace_name=config_client.workspace, 
+                        session_id=registered_session.session_id, 
+                        body=sim_state
             )
             sequence_id = event.sequence_id
-            print("[{}] Last Event: {}".format(time.strftime("%H:%M:%S"), event.type))
+            print("[{}] Last Event: {}".format(time.strftime('%H:%M:%S'), 
+                                               event.type))
 
             # Event loop
-            if event.type == "Idle":
+            if event.type == 'Idle':
                 time.sleep(event.idle.callback_time)
-                print("Idling...")
-            elif event.type == "EpisodeStart":
-                print(event.episode_start.config)
+                print('Idling...')
+            elif event.type == 'EpisodeStart':
                 sim.episode_start(event.episode_start.config)
-                episode += 1
-            elif event.type == "EpisodeStep":
-                iteration += 1
+            elif event.type == 'EpisodeStep':
                 sim.episode_step(event.episode_step.action)
-            elif event.type == "EpisodeFinish":
-                print("Episode Finishing...")
-                iteration = 0
-            elif event.type == "Unregister":
+            elif event.type == 'EpisodeFinish':
+                print('Episode Finishing...')
+            elif event.type == 'Unregister':
                 client.session.delete(
-                    workspace_name=config_client.workspace,
-                    session_id=registered_session.session_id,
+                    workspace_name=config_client.workspace, 
+                    session_id=registered_session.session_id
                 )
                 print("Unregistered simulator.")
             else:
@@ -327,19 +269,21 @@ def main():
     except KeyboardInterrupt:
         # Gracefully unregister with keyboard interrupt
         client.session.delete(
-            workspace_name=config_client.workspace,
-            session_id=registered_session.session_id,
+            workspace_name=config_client.workspace, 
+            session_id=registered_session.session_id
         )
         print("Unregistered simulator.")
     except Exception as err:
         # Gracefully unregister for any other exceptions
         client.session.delete(
-            workspace_name=config_client.workspace,
-            session_id=registered_session.session_id,
+            workspace_name=config_client.workspace, 
+            session_id=registered_session.session_id
         )
         print("Unregistered simulator because: {}".format(err))
 
-
 if __name__ == "__main__":
-    main()
-    #test_random_policy()
+    parser = argparse.ArgumentParser(description='args for sim integration',
+                                     allow_abbrev=False)
+    parser.add_argument('--render', action='store_true')
+    args, _ = parser.parse_known_args()
+    main(render=args.render)
