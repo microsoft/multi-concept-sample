@@ -27,7 +27,7 @@ class TemplateSimulatorSession:
     def __init__(
         self,
         modeldir: str = "sim",
-        env_name: str = "moab-sim-py"
+        env_name: str = "moab-py-v5"
     ):
         """Simulator Interface with the Bonsai Platform
         Parameters
@@ -195,7 +195,7 @@ class TemplateSimulatorSession:
 
     def random_policy(self, state: Dict = None) -> Dict:
 
-        return random_policy()         
+        return random_policy(state)         
 
 def env_setup():
     """Helper function to setup connection with Project Bonsai
@@ -238,7 +238,6 @@ def test_random_policy(
     num_episodes : int, optional
         number of iterations to run, by default 10
     """
-
     sim = TemplateSimulatorSession()
     for episode in range(num_episodes):
         iteration = 0
@@ -272,7 +271,7 @@ def main():
     client = BonsaiClient(config_client)
 
     # # Load json file as simulator integration config type file
-    # with open("interface.json") as file:
+    # with open("moab_interface.json") as file:
     # interface = json.load(file)
 
     # Create simulator session and init sequence id
@@ -343,3 +342,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    #test_random_policy()
