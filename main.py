@@ -1,8 +1,6 @@
 """
-Simulator for the Moab plate+ball balancing device.
+Simulator for the Moab plate+ball balancing device using concept selectors
 """
-__author__ = "Mike Estee"
-__copyright__ = "Copyright 2020, Microsoft Corp."
 
 # pyright: strict
 
@@ -29,7 +27,7 @@ class TemplateSimulatorSession:
     def __init__(
         self,
         modeldir: str = "sim",
-        env_name: str = "Moab"
+        env_name: str = "moab-sim-py"
     ):
         """Simulator Interface with the Bonsai Platform
         Parameters

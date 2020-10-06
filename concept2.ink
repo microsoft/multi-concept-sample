@@ -4,7 +4,7 @@
 # Copyright 2020 Microsoft
 # This code is licensed under MIT license (see LICENSE for details)
 
-# Moab Tutorial 1
+# Moab Concept 2 with Target other than center
 # This introductory sample demonstrates how to teach a policy for 
 # controlling a ball on the plate of a "Moab" hardware device. 
 
