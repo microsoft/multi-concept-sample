@@ -4,7 +4,9 @@
 # Copyright 2020 Microsoft
 # This code is licensed under MIT license (see LICENSE for details)
 
-# Moab Tutorial 1
+# Moab selector 
+# Concept 1 - MoveToCenter
+# Concept 2 - MoveToTarget
 # This introductory sample demonstrates how to teach a policy for 
 # controlling a ball on the plate of a "Moab" hardware device. 
 
